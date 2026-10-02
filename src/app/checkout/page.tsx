@@ -27,6 +27,7 @@ export default function CheckoutPage() {
     paymentMethod: 'cod'
   });
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [orderId, setOrderId] = useState('');
 
@@ -36,26 +37,63 @@ export default function CheckoutPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) {
       showToast('Your cart is empty', 'warning');
       return;
     }
 
-    const generatedId = 'PT-' + Math.floor(100000 + Math.random() * 900000);
-    setOrderId(generatedId);
-    setIsSubmitted(true);
-    clearCart();
+    setIsSubmitting(true);
 
     try {
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.6 }
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customer_name: formData.fullName,
+          customer_phone: formData.phone,
+          customer_email: formData.email,
+          city: formData.city,
+          shipping_address: formData.address,
+          payment_method: formData.paymentMethod,
+          subtotal,
+          discount,
+          delivery_fee: shipping,
+          total_amount: total,
+          coupon_code: couponCode,
+          items: cart,
+        }),
       });
-    } catch (e) {
-      console.error(e);
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        showToast(result.error || 'Failed to place order. Please try again.', 'warning');
+        setIsSubmitting(false);
+        return;
+      }
+
+      setOrderId(result.order_number);
+      setIsSubmitted(true);
+      clearCart();
+
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    } catch (error: any) {
+      console.error('Order Submission Error:', error);
+      showToast('Network error while placing order. Please try again.', 'warning');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -345,10 +383,20 @@ export default function CheckoutPage() {
 
               <button
                 type="submit"
-                className="w-full py-4 rounded-2xl bg-[#010101] hover:bg-[#FF4C00] text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition transform active:scale-95"
+                disabled={isSubmitting}
+                className="w-full py-4 rounded-2xl bg-[#010101] hover:bg-[#FF4C00] disabled:bg-neutral-600 disabled:cursor-not-allowed text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition transform active:scale-95"
               >
-                <Lock className="w-4 h-4" />
-                <span>Confirm & Place Order ({formatPKR(total)})</span>
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Processing Order...</span>
+                  </span>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    <span>Confirm & Place Order ({formatPKR(total)})</span>
+                  </>
+                )}
               </button>
 
               <div className="text-[11px] text-neutral-500 text-center font-medium space-y-1">

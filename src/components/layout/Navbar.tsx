@@ -34,7 +34,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenSearch }) => {
     { name: 'New Arrivals', href: '/shop?filter=new' },
     { name: 'Men', href: '/shop?gender=Men' },
     { name: 'Women', href: '/shop?gender=Women' },
-    { name: 'Brands', href: '/shop?section=brands' },
+    { name: 'Track Order', href: '/track' },
     { name: 'About', href: '/about' },
     { name: 'Contact', href: '/contact' }
   ];

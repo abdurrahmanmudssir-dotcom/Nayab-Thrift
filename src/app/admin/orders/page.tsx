@@ -47,10 +47,10 @@ export default function AdminOrdersPage() {
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     setUpdatingId(orderId);
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await fetch('/api/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_status: newStatus }),
+        body: JSON.stringify({ id: orderId, order_status: newStatus }),
       });
       if (res.ok) {
         setOrders((prev) =>
@@ -66,10 +66,10 @@ export default function AdminOrdersPage() {
 
   const handleTrackingUpdate = async (orderId: string, trackingNumber: string) => {
     try {
-      await fetch(`/api/orders/${orderId}`, {
+      await fetch('/api/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tracking_number: trackingNumber }),
+        body: JSON.stringify({ id: orderId, tracking_number: trackingNumber }),
       });
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, tracking_number: trackingNumber } : o))

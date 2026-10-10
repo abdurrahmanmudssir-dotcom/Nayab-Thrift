@@ -61,49 +61,49 @@ export async function POST(request: Request) {
       updated_at: now,
     };
 
-    // 1. If Supabase is connected, insert directly to PostgreSQL Database
+    // 1. If Supabase is connected, attempt insert to PostgreSQL Database
     if (isSupabaseConfigured && supabase) {
-      const { data: insertedOrder, error: orderError } = await supabase
-        .from('orders')
-        .insert([newOrder])
-        .select()
-        .single();
+      try {
+        const { data: insertedOrder, error: orderError } = await supabase
+          .from('orders')
+          .insert([newOrder])
+          .select()
+          .single();
 
-      if (orderError) {
-        console.error('Supabase Order Insert Error:', orderError);
-        return NextResponse.json(
-          { success: false, error: orderError.message },
-          { status: 500 }
-        );
+        if (!orderError && insertedOrder) {
+          // Insert Order Items
+          const orderItemsToInsert = items.map((item: any) => ({
+            order_id: insertedOrder.id,
+            product_id: String(item.product?.id || item.product_id || 'PROD-1'),
+            product_name: item.product?.name || item.product_name,
+            brand: item.product?.brand || item.brand || 'Original',
+            size_eu: String(item.selectedSize || item.size_eu || '42'),
+            size_uk: String(item.product?.sizeUK || item.size_uk || '8'),
+            price: Number(item.product?.thriftPrice || item.price || 0),
+            image_url: item.product?.images?.[0] || item.image_url || '',
+            condition_score: item.product?.condition?.score || item.condition_score || 9.0,
+          }));
+
+          const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(orderItemsToInsert);
+
+          if (itemsError) {
+            console.error('Supabase Order Items Error:', itemsError);
+          }
+
+          return NextResponse.json({
+            success: true,
+            order_number: insertedOrder.order_number,
+            order: insertedOrder,
+            storage: 'supabase',
+          });
+        } else if (orderError) {
+          console.warn('Supabase insert warning, falling back:', orderError.message);
+        }
+      } catch (err: any) {
+        console.warn('Supabase connection exception, falling back:', err.message);
       }
-
-      // Insert Order Items
-      const orderItemsToInsert = items.map((item: any) => ({
-        order_id: insertedOrder.id,
-        product_id: String(item.product?.id || item.product_id || 'PROD-1'),
-        product_name: item.product?.name || item.product_name,
-        brand: item.product?.brand || item.brand || 'Original',
-        size_eu: String(item.selectedSize || item.size_eu || '42'),
-        size_uk: String(item.product?.sizeUK || item.size_uk || '8'),
-        price: Number(item.product?.thriftPrice || item.price || 0),
-        image_url: item.product?.images?.[0] || item.image_url || '',
-        condition_score: item.product?.condition?.score || item.condition_score || 9.0,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItemsToInsert);
-
-      if (itemsError) {
-        console.error('Supabase Order Items Error:', itemsError);
-      }
-
-      return NextResponse.json({
-        success: true,
-        order_number: insertedOrder.order_number,
-        order: insertedOrder,
-        storage: 'supabase',
-      });
     }
 
     // 2. Dev Fallback: Store locally
